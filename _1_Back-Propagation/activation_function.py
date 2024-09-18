@@ -15,5 +15,9 @@ class ActivationFunction:
 
   @staticmethod
   def softmax(x: np.ndarray) -> np.ndarray:
-    exp_values = np.exp(x - np.max(x, axis=1, keepdims=True))
-    return exp_values / np.sum(exp_values, axis=1, keepdims=True)
+    if len(x.shape) == 1:  # For 1D input
+      exp_values = np.exp(x - np.max(x))
+      return exp_values / np.sum(exp_values)
+    else:  # For 2D input
+      exp_values = np.exp(x - np.max(x, axis=1, keepdims=True))
+      return exp_values / np.sum(exp_values, axis=1, keepdims=True)

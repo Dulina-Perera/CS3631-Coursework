@@ -9,11 +9,11 @@ class DenseLayer:
     self.input_size = input_size
     self.output_size = output_size
     self.weights = np.random.randn(input_size, output_size) / np.sqrt(input_size + output_size)
-    self.bias = np.random.randn(1, output_size) / np.sqrt(input_size + output_size)
+    self.biases = np.random.randn(1, output_size) / np.sqrt(input_size + output_size)
 
   def forward(self, input):
     self.input = input
-    return np.dot(input, self.weights) + self.bias
+    return np.dot(input, self.weights) + self.biases
 
   def backward(self, output_gradient, learning_rate):
     if len(self.input.shape) == 1:
@@ -26,7 +26,7 @@ class DenseLayer:
     weights_gradient = np.dot(self.input.T, output_gradient)
 
     self.weights -= learning_rate * weights_gradient
-    self.bias -= learning_rate * output_gradient
+    self.biases -= learning_rate * output_gradient
 
     return input_error
 

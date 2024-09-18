@@ -3,6 +3,8 @@
 # %%
 import numpy as np
 
+from nptyping import Float64, NDArray
+
 # %%
 class LossFunction:
   @staticmethod
@@ -11,5 +13,5 @@ class LossFunction:
     return -np.sum(y_true * np.log(y_pred_clipped), axis=1)
 
   @staticmethod
-  def categorical_cross_entropy_prime(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+  def categorical_cross_entropy_prime(y_true: np.ndarray, y_pred: np.ndarray) -> NDArray[NDArray[Float64]]:
     return y_pred - y_true
