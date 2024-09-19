@@ -1,126 +1,81 @@
-# _1_Back-Propagation/nn.py
+# _1_Back-Propagation/code/nn.py
 
 # %%
 import numpy as np
-import os
-import matplotlib.pyplot as plt
-from layer import ActivationLayer, DenseLayer
-from nptyping import Int8, Float64, NDArray
+
+from layer import ActivationLayer, DenseLayer, relu, relu_prime, softmax
+from nptyping import NDArray
 from typing import Callable, List, Union
 
 # %%
 class NeuralNetwork:
   def __init__(self) -> None:
-    self.layers: List[ActivationLayer | DenseLayer] = []
-    self.loss: Union[Callable[[NDArray[Int8], NDArray[NDArray[Float64]]], NDArray[Float64]], None] = None
-    self.loss_prime: Union[Callable[[NDArray[Int8], NDArray[NDArray[Float64]]], NDArray[NDArray[Float64]]], None] = None
-    self.error_history: List[float] = []
+    self.layers = []
+    self.loss_fn = None
+    self.loss_prime = None
+    self.err_hist = []
 
-  def add(self, layer: Union[ActivationLayer, DenseLayer]) -> None:
-    self.layers.append(layer)
+  def add(
+    self,
+    layer: Union[ActivationLayer, DenseLayer]
+  ) -> None:
+    if isinstance(layer, ActivationLayer) or isinstance(layer, DenseLayer):
+      self.layers.append(layer)
 
   def use(
     self,
-    loss: Callable[[NDArray[Int8], NDArray[NDArray[Float64]]], NDArray[Float64]],
-    loss_prime: Callable[[NDArray[Int8], NDArray[NDArray[Float64]]], NDArray[NDArray[Float64]]]
-  ) -> None:
-    self.loss = loss
-    self.loss_prime = loss_prime
+    loss_fn: Callable,
+    loss_prime: Callable
+	) -> None:
+    if callable(loss_fn) and callable(loss_prime):
+      self.loss_fn = loss_fn
+      self.loss_prime = loss_prime
 
   def train(
-    self,
-    X_train: NDArray[NDArray[Int8]],
-    y_train: NDArray[Int8],
-    epochs: int,
-    learning_rate: float,
-    patience: int = 10
-  ) -> None:
-    best_error: float = float('inf')
+		self,
+		X_train: NDArray,
+		y_train: NDArray,
+		epochs: int,
+		patience: int
+	) -> None:
     patience_counter: int = 0
-    best_weights: Union[List[NDArray[NDArray[Float64]]], None] = None
-    best_biases: Union[List[NDArray[NDArray[Float64]]], None] = None
+    least_err: float = float('inf')
+    best_weights: Union[List, None] = None
+    best_biases: Union[List, None] = None
 
     for epoch in range(epochs):
-      error: float = 0
-      for (x, y) in zip(X_train, y_train):
-        output: NDArray[Int8 | Float64] = x
+      err: float = 0
+      for (X, y) in zip(X_train, y_train):
+        output: NDArray = X
         for layer in self.layers:
           output = layer.forward(output)
 
-        # error += self.loss(y, output)
+        err += self.loss_fn(y, output)
 
-        output_gradient: NDArray[NDArray[Float64]] = self.loss_prime(y, output)
+        output_grad: NDArray = self.loss_prime(y, output)
         for layer in reversed(self.layers):
-          output_gradient = layer.backward(output_gradient, learning_rate)
+          output_grad = layer.backward(output_grad)
 
-      error /= len(X_train)
-      self.error_history.append(error)
-      print(f'Epoch {epoch + 1}/{epochs}, Error: {error}')
+      err /= len(X_train)
+      self.err_hist.append(err)
+      print(f'Epoch {epoch + 1}/{epochs} | Error: {err}')
 
-      if error < best_error:
-        best_error = error
+      if err <= least_err:
         patience_counter = 0
-
-        best_weights = [layer.weights.copy() for layer in self.layers if hasattr(layer, 'weights')]
-        best_biases = [layer.biases.copy() for layer in self.layers if hasattr(layer, 'biases')]
+        least_err = err
+        best_weights = [layer.weights for layer in self.layers if hasattr(layer, 'weights')]
+        best_biases = [layer.biases for layer in self.layers if hasattr(layer, 'biases')]
       else:
         patience_counter += 1
 
-      if patience_counter >= patience:
+      if patience_counter == patience:
         print(f"Early stopping on epoch {epoch + 1} due to no improvement in error for {patience} consecutive epochs.")
 
-        if best_weights is not None:
-          for i, layer in enumerate(reversed(self.layers)):
+        if best_weights and best_biases:
+          for i, layer in enumerate(self.layers):
             if hasattr(layer, 'weights'):
-              layer.weights = best_weights.pop()
-              layer.biases = best_biases.pop()
+              layer.weights = best_weights[i]
+            if hasattr(layer, 'biases'):
+              layer.biases = best_biases[i]
 
-        print(f'Restored best model with error: {best_error}')
         break
-
-  def save_wandb(self, directory_path: str) -> None:
-    if not os.path.exists(directory_path):
-      os.makedirs(directory_path)
-
-    for i, layer in enumerate(self.layers):
-      if hasattr(layer, 'weights'):
-        np.savetxt(f'{directory_path}/weights_layer_{i+1}.txt', layer.weights, delimiter=',')
-        np.savetxt(f'{directory_path}/biases_layer_{i+1}.txt', layer.biases, delimiter=',')
-
-  def load_wandb(self, directory_path: str) -> None:
-    for i, layer in enumerate(self.layers):
-      if hasattr(layer, 'weights'):
-        layer.weights = np.loadtxt(f'{directory_path}/weights_layer_{i+1}.txt', delimiter=',')
-        layer.biases = np.loadtxt(f'{directory_path}/biases_layer_{i+1}.txt', delimiter=',')
-
-  def predict(self, X_test: NDArray[NDArray[Int8]], y_test: NDArray[Int8] = None) -> Union[float, NDArray]:
-    samples = len(X_test)
-    correct_predictions = 0
-    predictions = []
-
-    for i in range(samples):
-      output = X_test[i]
-      for layer in self.layers:
-        output = layer.forward(output)
-      predicted_label = np.argmax(output)
-      predictions.append(predicted_label)
-
-      if y_test is not None and predicted_label == np.argmax(y_test[i]):
-        correct_predictions += 1
-
-    accuracy = correct_predictions / samples if y_test is not None else None
-
-    if y_test is not None:
-      print(f'Accuracy: {accuracy * 100:.2f}%')
-
-    return accuracy if y_test is not None else np.array(predictions)
-
-  def plot_error(self, file_path: str) -> None:
-    plt.figure(figsize=(10, 5))
-    plt.plot(range(1, len(self.error_history) + 1), self.error_history, marker='o')
-    plt.title("Training Error vs. Epochs")
-    plt.xlabel("Epochs")
-    plt.ylabel("Error")
-    plt.grid(True)
-    plt.savefig(file_path)
-    print(f'Error plot saved at {file_path}')

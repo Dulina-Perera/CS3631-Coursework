@@ -16,7 +16,7 @@ class DenseLayer:
     The size of the input to the layer
   output_size : int
     The size of the output from the layer
-  learning_rate : float
+  lr : float
 		The learning rate used to update the weights and biases
   weights : NDArray
     The weight matrix connecting the inputs to the outputs
@@ -29,7 +29,7 @@ class DenseLayer:
   --------
   forward(input):
     Performs the forward pass, computing the output for the given input.
-  backward(output_gradient, learning_rate):
+  backward(output_gradient, lr):
     Performs the backward pass, updating the weights and biases, and computing
     the gradient to propagate to the previous layer.
   """
@@ -37,7 +37,7 @@ class DenseLayer:
 		self,
 		input_size: int,
 		output_size: int,
-		learning_rate: float
+		lr: float
 	) -> None:
     """
     Initializes the DenseLayer with random weights and biases.
@@ -48,7 +48,7 @@ class DenseLayer:
       The size of the input to the layer
     output_size : int
       The size of the output from the layer
-    learning_rate : float
+    lr : float
 			The learning rate used to update the weights and biases
     """
     # Store the input and output sizes.
@@ -62,7 +62,7 @@ class DenseLayer:
     self.biases = np.random.randn(1, output_size) / np.sqrt(input_size + output_size)
 
     # Store the learning rate for use in the backward pass.
-    self.learning_rate = learning_rate
+    self.lr = lr
 
   def forward(
     self,
@@ -120,10 +120,10 @@ class DenseLayer:
     weights_gradient = np.dot(self.input.T, output_gradient)
 
     # Update the weights by subtracting the gradient multiplied by the learning rate.
-    self.weights -= self.learning_rate * weights_gradient
+    self.weights -= self.lr * weights_gradient
 
     # Update the biases by subtracting the gradient of the output.
-    self.biases -= self.learning_rate * output_gradient
+    self.biases -= self.lr * output_gradient
 
     # Return the gradient of the input, which is propagated backward to the previous layer.
     return input_error
